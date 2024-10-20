@@ -1,6 +1,6 @@
 (ns json.scanner-test
   (:require [clojure.test :refer [deftest is]]
-            [json.scanner :refer :all]))
+            [json.scanner :refer [->Token scan]]))
 
 (defn tkn
   ([type] (->Token type nil))

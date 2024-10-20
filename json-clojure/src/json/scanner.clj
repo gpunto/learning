@@ -1,12 +1,11 @@
 (ns json.scanner
-  (:require [clojure.string :as str]))
+  (:require
+   [clojure.string :as str]
+   [json.utils :refer [illegal-state]]))
 
 (defrecord Token [type value])
 
 (declare scan continue-scan)
-
-(defn illegal-state [& messages]
-  (throw (IllegalStateException. (str messages))))
 
 (def white? ^[char] Character/isWhitespace)
 (def digit? ^[char] Character/isDigit)
@@ -24,10 +23,10 @@
                      (split-with digit? (next next1))
                      [nil next1])]
     (->>
-      (concat s1 "." s2)
-      (str/join)
-      (parse-double)
-      (continue-scan next2 tokens :number))))
+     (concat s1 "." s2)
+     (str/join)
+     (parse-double)
+     (continue-scan next2 tokens :number))))
 
 (defn scan-alpha [text tokens]
   (let [[s next] (split-with alpha? text)]
@@ -61,5 +60,4 @@
          (white? c) (scan (next text) tokens)
          (digit? c) (scan-num text tokens)
          (alpha? c) (scan-alpha text tokens)
-         :else (illegal-state "Unexpected character " c))
-       ))))
+         :else (illegal-state "Unexpected character " c))))))
