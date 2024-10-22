@@ -15,16 +15,23 @@
 
 (declare parse)
 
-(defn- parse-string [[t & tokens]]
-  (expect :string t)
+(defn- parse-primitive [expected-type [t & tokens]]
+  (expect expected-type t)
   (->Result (:value t) tokens))
 
 (defn- parse-array
-  ([tokens] (parse-array tokens (list)))
-  ([[t & tokens] acc]
+  ([tokens] (parse-array tokens (list) false))
+  ([[t & tokens] acc require-element]
    (if (= :close-bracket (:type t))
-     (->Result acc tokens)
-     ())))
+     (if require-element
+       (illegal-state "Unexpected token " :close-bracket)
+       (->Result (reverse acc) tokens))
+     (let [{value :parsed next-tokens :tokens} (parse (cons t tokens))
+           [next-t & remaining] next-tokens]
+       (case (:type next-t)
+         :comma         (parse-array remaining (cons value acc) true)
+         :close-bracket (parse-array next-tokens (cons value acc) false)
+         :else          (illegal-state "Unexpected token " (:type next-t)))))))
 
 (defn- parse-object
   ([tokens] (parse-object tokens (hash-map)))
@@ -44,15 +51,17 @@
 ;           (parse-object rest-tokens (assoc acc (:value t) value))))))
 
 (defn parse [tokens]
-  (case (:type (first tokens))
-    :string (parse-string tokens)
-    :open-brace (parse-object (rest tokens))
-    :open-bracket (parse-array (rest tokens))))
+  (let [token-type (:type (first tokens))]
+    (cond
+      (#{:null :boolean :number :string} token-type) (parse-primitive token-type tokens)
+      (= :open-brace token-type) (parse-object (rest tokens))
+      (= :open-bracket token-type) (parse-array (rest tokens))
+      :else (illegal-state "Unexpected token " token-type))))
 
 (defn -main
   [& args]
-  ; (let [tokens (scanner/scan "\"stringerina\"")]
-  ; (let [tokens (scanner/scan "[]")]
-  (let [tokens (scanner/scan "{\"whatever\": \"bibibi\"}")]
-    (println "Parsing: " tokens)
-    (println (parse tokens))))
+  ; (let [json (scanner/scan "\"stringerina\"")]
+  ; (let [json "[true, false, null, 1, 2, \"stringerina\"]"]
+  (let [json "{\"whatever\": \"bibibi\"}"]
+    (println "Parsing" json)
+    (println (:parsed (parse (scanner/scan json))))))
