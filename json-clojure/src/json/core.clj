@@ -19,6 +19,13 @@
   (expect expected-type t)
   (->Result (:value t) tokens))
 
+(defn- parse-signed-num [[t1 t2 & tokens]]
+  (expect :number t2)
+  (case (:type t1)
+    :plus  (->Result (:value t2) tokens)
+    :minus (->Result (- (:value t2)) tokens)
+    :else  (illegal-state "Unexpected token " (:type t1) " while parsing a number")))
+
 (defn- parse-array
   ([tokens] (parse-array tokens (list) false))
   ([[t & tokens] acc require-element]
@@ -53,6 +60,7 @@
   (let [token-type (:type (first tokens))]
     (cond
       (#{:null :boolean :number :string} token-type) (parse-primitive token-type tokens)
+      (#{:plus :minus} token-type) (parse-signed-num tokens)
       (= :open-brace token-type) (parse-object (rest tokens))
       (= :open-bracket token-type) (parse-array (rest tokens))
       :else (illegal-state "Unexpected token " token-type))))
@@ -62,8 +70,11 @@
   (doseq [json ["\"stringerina\""
                 "[true, false, null, 1, 2, \"stringerina\"]"
                 "{}"
+                "1"
+                "+2"
+                "-3"
                 "{\"simple\": \"no nesting\"}"
-                "{\"whatever\": \"bibibi\", \"complex\": {\"nested\": 12, \"array\": [10, 1, {\"deeply\": \"very\"}]}}"]]
+                "{\"whatever\": \"bibibi\", \"complex\": {\"nested\": 12, \"array\": [10, -1, {\"deeply\": \"very\"}]}}"]]
     (println "Parsing" json)
     (println (:parsed (parse (scanner/scan json))))
     (println (type (:parsed (parse (scanner/scan json)))))
