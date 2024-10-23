@@ -34,21 +34,20 @@
          :else          (illegal-state "Unexpected token " (:type next-t)))))))
 
 (defn- parse-object
-  ([tokens] (parse-object tokens (hash-map)))
-  ([[t & tokens] acc]
-   (let [ty (:type t)]
-     (if (= ty :close-brace)
-       (->Result acc tokens)
-       (let [_ (expect :string t)
-             {value :parsed next :tokens} (parse (consume :colon tokens))
-             new-acc (assoc acc (:value t) value)]
-               ; todo handle comma
-         (parse-object next new-acc))))))
-
-; :string (let [[value-token & rest-tokens] (consume :colon tokens)
-;               _ (expect :string value-token)
-;               value (:value value-token)]
-;           (parse-object rest-tokens (assoc acc (:value t) value))))))
+  ([tokens] (parse-object tokens (hash-map) false))
+  ([[t & tokens] acc require-element]
+   (if (= (:type t) :close-brace)
+     (if require-element
+       (illegal-state "Unexpected token " :close-brace)
+       (->Result acc tokens))
+     (let [_ (expect :string t)
+           {value :parsed next-tokens :tokens} (parse (consume :colon tokens))
+           [next-t & remaining] next-tokens
+           new-acc (assoc acc (:value t) value)]
+       (case (:type next-t)
+         :comma        (parse-object remaining new-acc true)
+         :close-brace  (parse-object next-tokens new-acc false)
+         :else         (illegal-state "Unexpected token " (:type next-t)))))))
 
 (defn parse [tokens]
   (let [token-type (:type (first tokens))]
@@ -60,8 +59,12 @@
 
 (defn -main
   [& args]
-  ; (let [json (scanner/scan "\"stringerina\"")]
-  ; (let [json "[true, false, null, 1, 2, \"stringerina\"]"]
-  (let [json "{\"whatever\": \"bibibi\"}"]
+  (doseq [json ["\"stringerina\""
+                "[true, false, null, 1, 2, \"stringerina\"]"
+                "{}"
+                "{\"simple\": \"no nesting\"}"
+                "{\"whatever\": \"bibibi\", \"complex\": {\"nested\": 12, \"array\": [10, 1, {\"deeply\": \"very\"}]}}"]]
     (println "Parsing" json)
-    (println (:parsed (parse (scanner/scan json))))))
+    (println (:parsed (parse (scanner/scan json))))
+    (println (type (:parsed (parse (scanner/scan json)))))
+    (println)))
