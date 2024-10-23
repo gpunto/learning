@@ -45,19 +45,21 @@
 (defn scan
   ([text] (scan text []))
   ([text tokens]
-   (let [c (first text)]
+   (let [[c & cs] text]
      (case c
        nil tokens
-       \{ (continue-scan (next text) tokens :open-brace)
-       \} (continue-scan (next text) tokens :close-brace)
-       \[ (continue-scan (next text) tokens :open-bracket)
-       \] (continue-scan (next text) tokens :close-bracket)
-       \, (continue-scan (next text) tokens :comma)
-       \: (continue-scan (next text) tokens :colon)
-       \" (scan-string (next text) tokens)
+       \{ (continue-scan cs tokens :open-brace)
+       \} (continue-scan cs tokens :close-brace)
+       \[ (continue-scan cs tokens :open-bracket)
+       \] (continue-scan cs tokens :close-bracket)
+       \, (continue-scan cs tokens :comma)
+       \: (continue-scan cs tokens :colon)
+       \" (scan-string cs tokens)
        \. (scan-num (cons \0 text) tokens)
+       \- (continue-scan cs tokens :minus)
+       \+ (continue-scan cs tokens :plus)
        (cond
-         (white? c) (scan (next text) tokens)
+         (white? c) (scan cs tokens)
          (digit? c) (scan-num text tokens)
          (alpha? c) (scan-alpha text tokens)
          :else (illegal-state "Unexpected character " c))))))
